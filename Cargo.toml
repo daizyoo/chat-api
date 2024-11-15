@@ -1,0 +1,21 @@
+[package]
+name = "chat-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4"
+tokio = { version = "1.32.0", features = ["rt", "macros"] } # "rt-multi-thread",
+
+serde = { version = "1.0.194", features = ["derive"] }
+
+anyhow = "1.0"
+
+dotenvy = "0.15.7"
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3.17", features = [
+  "std",
+  "env-filter",
+  "time",
+  "local-time",
+] }
