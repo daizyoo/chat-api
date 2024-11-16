@@ -4,15 +4,32 @@ use actix_web::{
     web::{Data, Json},
     HttpResponse, Responder,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use tracing::info;
 
-use crate::MessageList;
+use crate::{Id, MessageList};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Message {
     text: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct Messages<'a> {
+    messages: &'a Vec<Message>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Room {
+    id: Id,
+}
+
+/// # Example
+///
+///```ts
+/// let post = { message: 'text' }
+/// return ...
+/// ```
 pub async fn send_message(
     message_list: Data<Mutex<MessageList>>,
     Json(message): Json<Message>,
@@ -25,4 +42,22 @@ pub async fn send_message(
     }
 
     HttpResponse::Ok()
+}
+
+/// # Example
+///```ts
+/// let post = { id: ID }
+/// return { messages: [message...] }
+/// ```
+pub async fn get_message(
+    message_list: Data<Mutex<MessageList>>,
+    Json(room): Json<Room>,
+) -> impl Responder {
+    let list = message_list.lock().unwrap();
+
+    if let Some(vec) = list.0.get(&room.id) {
+        info!("get: {:#?}", vec);
+        return HttpResponse::Ok().json(Messages { messages: vec });
+    }
+    panic!()
 }

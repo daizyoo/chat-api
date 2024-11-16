@@ -25,7 +25,11 @@ async fn main() -> anyhow::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .service(scope("/message").route("/send", post().to(message::send_message)))
+            .service(
+                scope("/message")
+                    .route("/send", post().to(message::send_message))
+                    .route("/get", post().to(message::get_message)),
+            )
             .app_data(messages.clone())
     })
     .bind(("127.0.0.1", 3478))?
