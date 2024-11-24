@@ -2,53 +2,56 @@ use std::sync::Mutex;
 
 use actix_web::{
     web::{Data, Json},
-    Responder,
+    HttpResponse,
 };
-use serde::Deserialize;
-use tracing::error;
 
 use crate::{
-    types::{Response, UserInfo},
-    user::LoginInfo,
+    types::{AddFriend, Response, UserInfo},
     DataList, FriendList, UserList,
 };
-
-#[derive(Debug, Deserialize)]
-pub struct AddFriend {
-    user: LoginInfo,
-    friend: UserInfo,
-}
 
 /// add friend
 pub async fn add(
     friends: Data<Mutex<FriendList>>,
     users: Data<Mutex<UserList>>,
-    Json(AddFriend { user, friend }): Json<AddFriend>,
-) -> impl Responder {
+    Json(add_friend): Json<AddFriend>,
+) -> HttpResponse {
+    let user = add_friend.user();
+    let friend = add_friend.friend().clone();
+
     let users = users.lock().unwrap();
 
     let id = user.id();
 
+    if friend.id() == user.id() {
+        return Response::error("login user == friend");
+    }
+
     // are there any user?
     let mut iter = users.0.iter();
-    if iter.find(|u| u.id() == id).is_none() {
+    if let Some(u) = iter.find(|u| u.id() == id) {
+        if u.password() != user.password() {
+            return Response::error("not match password");
+        }
+    } else {
         return Response::error("not found user");
-    }
-    if iter.find(|u| u.password() == user.password()).is_none() {
-        return Response::error("not match password");
     }
 
     let mut friends = friends.lock().unwrap();
 
-    // add to FriendList
+    // ユーザーのフレンドリストを取得
     if let Some(friends) = friends.0.get_mut(id) {
-        friends.push(friend);
-        return Response::ok("ok add friend");
+        //
+        if friends.iter().find(|f| f.id() == friend.id()).is_none() {
+            friends.push(friend);
+            Response::ok("ok add friend")
+        } else {
+            Response::error("the friend already exists")
+        }
     } else {
         if let Some(user) = friends.0.insert(id.to_string(), vec![friend]) {
             let message = format!("FriendList insert error found: {:#?}", user);
-            error!(message);
-            return Response::error(message);
+            Response::error(message);
         }
         Response::error("not found user and friend list")
     }
@@ -58,7 +61,7 @@ pub async fn get(
     friends: Data<Mutex<FriendList>>,
     users: Data<Mutex<UserList>>,
     Json(user): Json<UserInfo>,
-) -> impl Responder {
+) -> HttpResponse {
     {
         let users = users.lock().unwrap();
         if !users.exist(user.id()) {
@@ -74,6 +77,6 @@ pub async fn get(
 }
 
 /// delete friend
-pub async fn delete() -> impl Responder {
+pub async fn delete() -> HttpResponse {
     Response::ok("non implement")
 }

@@ -2,14 +2,13 @@ use std::sync::Mutex;
 
 use actix_web::{
     web::{Data, Json},
-    Responder,
+    HttpResponse,
 };
 use tracing::info;
 
 use crate::{
-    types::{Response, UserInfo},
-    user::LoginInfo,
-    CreateRoom, DataList, FriendList, MessageList, Room, RoomId, RoomList, UserList,
+    types::{CreateRoom, LoginInfo, Response, UserInfo},
+    DataList, FriendList, MessageList, Room, RoomList, UserList,
 };
 
 pub async fn create(
@@ -18,17 +17,17 @@ pub async fn create(
     message_list: Data<Mutex<MessageList>>,
     room_list: Data<Mutex<RoomList>>,
     Json(new_room): Json<CreateRoom>,
-) -> impl Responder {
+) -> HttpResponse {
     info!("create");
     {
         // メンバーがフレンドかどうか
         let friends = friend_list.lock().unwrap();
-        if let Some(friends) = friends.0.get(new_room.user.id()) {
+        if let Some(friends) = friends.0.get(new_room.user_id()) {
             if !friends
                 .iter()
                 .filter(|u| new_room.members().iter().any(|user_id| u.id() == user_id))
                 .count()
-                == new_room.members.len()
+                == new_room.members().len()
             {
                 return Response::error("フレンドではないユーザーが含まれています");
             }
@@ -39,7 +38,7 @@ pub async fn create(
         let users = user_list.lock().unwrap();
         if users
             .iter()
-            .find(|u| u.password() == new_room.user.password())
+            .find(|u| u.password() == new_room.user_password())
             .is_none()
         {
             return Response::ok("ユーザーのパスワードが間違っているのでRoomを作成できません");
@@ -55,7 +54,7 @@ pub async fn create(
             .map(|user| UserInfo::from(user))
             .collect();
 
-        members.push(UserInfo::from(users.find(new_room.user.id()).unwrap()));
+        members.push(UserInfo::from(users.find(new_room.user_id()).unwrap()));
     }
     let mut rooms = room_list.lock().unwrap();
     // roomの存在確認
@@ -75,9 +74,7 @@ pub async fn create(
     let mut messages = message_list.lock().unwrap();
 
     // 新しいidを作成
-    let mut ids = rooms.iter().map(|r| *r.id()).collect::<Vec<RoomId>>();
-    ids.sort();
-    let id = ids.last().unwrap_or(&0) + 1;
+    let id = rooms.new_id();
 
     // 新しく作ったroomのMessageListを作成
     messages.0.insert(id, Vec::new());
@@ -87,17 +84,15 @@ pub async fn create(
     Response::ok("create new room")
 }
 
-// TODO: アルゴリズムの改善
 pub async fn get_rooms(
     user_list: Data<Mutex<UserList>>,
     room_list: Data<Mutex<RoomList>>,
     Json(get_user): Json<LoginInfo>,
-) -> impl Responder {
+) -> HttpResponse {
     info!("get rooms: {:?}", get_user);
     let users = user_list.lock().unwrap();
     if let Some(get_user) = users.find(get_user.id()) {
         let rooms = room_list.lock().unwrap();
-        info!("{:?}", rooms.0);
 
         let rooms: Vec<&Room> = rooms
             .iter()
@@ -109,7 +104,21 @@ pub async fn get_rooms(
         if let Some(u) = rooms[0].members().iter().find(|u| u.id() == get_user.id()) {
             if let Some(u) = users.find(u.id()) {
                 if u.password() == get_user.password() {
-                    return Response::ok(rooms);
+                    return Response::ok(
+                        rooms
+                            .iter()
+                            .map(|r| {
+                                Room::from((
+                                    r.id(),
+                                    r.members()
+                                        .iter()
+                                        .filter(|u| u.id() != get_user.id())
+                                        .map(|u| u.clone())
+                                        .collect::<Vec<UserInfo>>(),
+                                ))
+                            })
+                            .collect::<Vec<Room>>(),
+                    );
                 } else {
                     return Response::error("not match user password");
                 }

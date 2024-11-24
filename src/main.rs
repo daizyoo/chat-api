@@ -6,58 +6,27 @@ mod user;
 
 use std::{collections::HashMap, sync::Mutex};
 
+use actix_cors::Cors;
 use actix_web::{
+    http::header,
     web::{post, scope, Data},
     App, HttpServer,
 };
 
-use serde::{Deserialize, Serialize};
 use tracing_subscriber::EnvFilter;
 
-use message::Message;
-use types::{User, UserInfo};
-use user::LoginInfo;
+use types::{Message, Room, RoomId, User, UserId, UserInfo};
 
-type RoomId = u32;
-
-type UserId = String;
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Room {
-    id: RoomId,
-    members: Vec<UserInfo>,
-}
-
-#[derive(Deserialize)]
-struct CreateRoom {
-    user: LoginInfo,
-    members: Vec<UserId>,
-}
-
-impl CreateRoom {
-    fn members(&self) -> &Vec<UserId> {
-        &self.members
-    }
-}
-
-impl Room {
-    fn new(id: RoomId, members: Vec<UserInfo>) -> Room {
-        Room { id, members }
-    }
-    fn id(&self) -> &RoomId {
-        &self.id
-    }
-    fn members(&self) -> &Vec<UserInfo> {
-        &self.members
-    }
-}
-
+#[derive(Debug)]
 struct RoomList(Vec<Room>);
 
+#[derive(Debug)]
 struct MessageList(HashMap<RoomId, Vec<Message>>);
 
+#[derive(Debug)]
 struct FriendList(HashMap<UserId, Vec<UserInfo>>);
 
+#[derive(Debug)]
 struct UserList(Vec<User>);
 
 trait DataList {
@@ -101,9 +70,16 @@ impl DataList for RoomList {
     }
 }
 
+impl RoomList {
+    fn new_id(&self) -> u32 {
+        let mut ids = self.iter().map(|r| *r.id()).collect::<Vec<RoomId>>();
+        ids.sort();
+        ids.last().unwrap_or(&0) + 1
+    }
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
-    // std::env::set_var("RUST_LOG", "actix_web=trace");
     dotenvy::dotenv()?;
 
     tracing_subscriber::fmt()
@@ -136,6 +112,13 @@ async fn main() -> anyhow::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .wrap(
+                Cors::default()
+                    .allowed_origin("http://localhost:3000")
+                    .allowed_methods(vec!["GET", "POST"])
+                    .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT])
+                    .allowed_header(header::CONTENT_TYPE),
+            )
             .service(
                 scope("/message")
                     .route("/send", post().to(message::send_message))
@@ -169,4 +152,122 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use crate::*;
+    use actix_web::{body::MessageBody, test, web::Json, HttpResponse};
+    use types::{GetMessages, LoginInfo, MessageInfo};
+
+    type DataM<T> = Data<Mutex<T>>;
+
+    fn data_mutex<T>(data: T) -> DataM<T> {
+        Data::new(Mutex::new(data))
+    }
+
+    fn message_list<const N: usize>(map: [(u32, Vec<Message>); N]) -> DataM<MessageList> {
+        data_mutex(MessageList(HashMap::from(map)))
+    }
+    fn room_list(vec: Vec<Room>) -> DataM<RoomList> {
+        data_mutex(RoomList(vec))
+    }
+    fn friend_list<const N: usize>(map: [(UserId, Vec<UserInfo>); N]) -> DataM<FriendList> {
+        data_mutex(FriendList(HashMap::from(map)))
+    }
+    fn user_list(vec: Vec<User>) -> DataM<UserList> {
+        data_mutex(UserList(vec))
+    }
+
+    fn user(name: &str, id: &str, pass: &str) -> User {
+        User::new(name.to_string(), id.to_string(), pass.to_string())
+    }
+    fn info_user(name: &str, id: &str) -> UserInfo {
+        UserInfo::new(name.to_string(), id.to_string())
+    }
+    fn login_user(id: &str, pass: &str) -> LoginInfo {
+        LoginInfo::new(id.to_string(), pass.to_string())
+    }
+
+    fn default_rooms() -> Vec<Room> {
+        vec![Room::new(
+            0,
+            vec![info_user("daiki", "@daiki"), info_user("kouta", "@kouta")],
+        )]
+    }
+
+    fn default_data() -> (
+        DataM<MessageList>,
+        DataM<RoomList>,
+        DataM<UserList>,
+        DataM<FriendList>,
+    ) {
+        (
+            message_list([(0, vec![])]),
+            room_list(default_rooms()),
+            user_list(vec![
+                user("daiki", "@daiki", "daiki"),
+                user("kouta", "@kouta", "kouta"),
+            ]),
+            friend_list([(String::from("@daiki"), vec![])]),
+        )
+    }
+
+    fn body_string(res: HttpResponse) -> String {
+        let bytes = res.into_body().try_into_bytes().unwrap().to_vec();
+        String::from_utf8(bytes).unwrap()
+    }
+    fn print_data<T: std::fmt::Debug>(data: &DataM<T>) -> std::sync::MutexGuard<'_, T> {
+        data.lock().unwrap()
+    }
+
+    #[test]
+    async fn message_get() {
+        let (msgs, rooms, users, _) = default_data();
+        let json = Json(GetMessages::new(
+            0,
+            LoginInfo::new(String::from("@daiki"), String::from("daiki")),
+        ));
+        println!("{:#?}", print_data(&msgs).0);
+        let res = message::get_message(msgs, users, rooms, json).await;
+        let body = body_string(res);
+        println!("{}", body)
+    }
+    #[test]
+    async fn message_send() {
+        let (msgs, _, _, _) = default_data();
+        let msgsc = msgs.clone();
+        let res = message::send_message(
+            msgsc,
+            Json(MessageInfo::new(
+                0,
+                String::from("test message"),
+                LoginInfo::new("@daiki".to_string(), "daiki".to_string()),
+            )),
+        )
+        .await;
+
+        let body = body_string(res);
+        println!("{}", body);
+        println!("{:#?}", print_data(&msgs));
+    }
+
+    #[test]
+    async fn room_create() {}
+    #[test]
+    async fn room_get() {}
+
+    #[test]
+    async fn user_create() {}
+    #[test]
+    async fn user_search() {}
+    #[test]
+    async fn user_login() {}
+
+    #[test]
+    async fn friend_add() {}
+    #[test]
+    async fn friend_get() {}
+    #[test]
+    async fn friend_delete() {}
 }
