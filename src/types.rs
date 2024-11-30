@@ -14,12 +14,12 @@ impl<T: Serialize + std::fmt::Debug> Response<T> {
     }
 
     pub fn ok(data: T) -> HttpResponse {
-        info!("{:#?}", data);
+        info!("response: {:#?}", data);
         HttpResponse::Ok().json(Response::new(Some(data), true))
     }
 
     pub fn error(data: T) -> HttpResponse {
-        error!("{:#?}", data);
+        error!("response: {:#?}", data);
         HttpResponse::Ok().json(Response::new(Some(data), false))
     }
     pub fn _set_cookie_ok(data: T, cookie: CookieBuilder) -> HttpResponse {

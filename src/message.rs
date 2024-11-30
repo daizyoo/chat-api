@@ -49,7 +49,6 @@ pub async fn get_message(
                 if user.password() == get.user_password() {
                     let list = message_list.lock().unwrap();
                     if let Some(vec) = list.0.get(&room.id()) {
-                        info!("get: {:#?}", vec);
                         Response::ok(vec)
                     } else {
                         Response::error(format!("not found messages: {}", get.room_id()))

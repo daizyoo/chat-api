@@ -32,12 +32,20 @@ struct UserList(Vec<User>);
 trait DataList {
     type Data;
     type ID;
-    // idの要素が存在するか
+    /// idの要素が存在するか
     fn exist(&self, id: &Self::ID) -> bool;
-    // idの要素を探す
+    /// idの要素を探す
     fn find(&self, id: &Self::ID) -> Option<&Self::Data>;
-    // iterにする
+    /// iterにする
     fn iter(&self) -> std::slice::Iter<'_, Self::Data>;
+}
+
+impl UserList {
+    fn serach(&self, user: UserInfo) -> impl Iterator<Item = &User> {
+        self.0
+            .iter()
+            .filter(move |&u| u.id().contains(user.id()) || u.name().contains(user.name()))
+    }
 }
 
 impl DataList for UserList {
@@ -86,7 +94,7 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(EnvFilter::from_default_env())
         .init();
 
-    let user = vec![
+    let _user = vec![
         User::new(
             "daiki".to_string(),
             "@daiki".to_string(),
@@ -99,25 +107,31 @@ async fn main() -> anyhow::Result<()> {
         ),
     ];
 
-    let rooms = Data::new(Mutex::new(RoomList(vec![Room::new(
-        1,
-        vec![UserInfo::from(&user[0]), UserInfo::from(&user[1])],
-    )])));
-    let messages = Data::new(Mutex::new(MessageList(HashMap::from([(1, Vec::new())]))));
-    let friends = Data::new(Mutex::new(FriendList(HashMap::from([
-        (String::from(user[0].id()), vec![UserInfo::from(&user[1])]),
-        (String::from(user[1].id()), vec![UserInfo::from(&user[0])]),
-    ]))));
-    let users = Data::new(Mutex::new(UserList(user)));
+    // let rooms = Data::new(Mutex::new(RoomList(vec![Room::new(
+    //     1,
+    //     vec![UserInfo::from(&user[0]), UserInfo::from(&user[1])],
+    // )])));
+    // let messages = Data::new(Mutex::new(MessageList(HashMap::from([(1, Vec::new())]))));
+    // let friends = Data::new(Mutex::new(FriendList(HashMap::from([
+    //     (String::from(user[0].id()), vec![UserInfo::from(&user[1])]),
+    //     (String::from(user[1].id()), vec![UserInfo::from(&user[0])]),
+    // ]))));
+    // let users = Data::new(Mutex::new(UserList(user)));
+    let rooms = Data::new(Mutex::new(RoomList(Vec::new())));
+    let messages = Data::new(Mutex::new(MessageList(HashMap::new())));
+    let friends = Data::new(Mutex::new(FriendList(HashMap::new())));
+    let users = Data::new(Mutex::new(UserList(Vec::new())));
 
     HttpServer::new(move || {
         App::new()
             .wrap(
                 Cors::default()
                     .allowed_origin("http://localhost:3000")
+                    .allowed_origin("https://c3d9-42-125-172-148.ngrok-free.app")
                     .allowed_methods(vec!["GET", "POST"])
                     .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT])
-                    .allowed_header(header::CONTENT_TYPE),
+                    .allowed_header(header::CONTENT_TYPE)
+                    .max_age(3600),
             )
             .service(
                 scope("/message")

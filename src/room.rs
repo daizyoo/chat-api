@@ -18,31 +18,33 @@ pub async fn create(
     room_list: Data<Mutex<RoomList>>,
     Json(new_room): Json<CreateRoom>,
 ) -> HttpResponse {
-    info!("create");
     {
         // メンバーがフレンドかどうか
         let friends = friend_list.lock().unwrap();
         if let Some(friends) = friends.0.get(new_room.user_id()) {
-            if !friends
+            if !new_room
+                .members()
                 .iter()
-                .filter(|u| new_room.members().iter().any(|user_id| u.id() == user_id))
-                .count()
-                == new_room.members().len()
+                .filter(|&m| new_room.user_id() != m)
+                .all(|m| friends.iter().any(|f| m == f.id()))
             {
-                return Response::error("フレンドではないユーザーが含まれています");
+                return Response::error(format!(
+                    "フレンドではないユーザーが含まれています: {:?}",
+                    new_room.members()
+                ));
             }
         }
     }
-    let mut members: Vec<UserInfo>;
+    let members: Vec<UserInfo>;
     {
         let users = user_list.lock().unwrap();
-        if users
-            .iter()
-            .find(|u| u.password() == new_room.user_password())
-            .is_none()
-        {
-            return Response::ok("ユーザーのパスワードが間違っているのでRoomを作成できません");
+        let Some(user) = users.find(new_room.user_id()) else {
+            return Response::error("not found create request user");
+        };
+        if new_room.user_password() != user.password() {
+            return Response::error("ユーザーのパスワードが間違っているのでRoomを作成できません");
         }
+
         // memberが全て存在するuserか
         if !new_room.members().iter().all(|id| users.exist(id)) {
             return Response::error(format!("存在しないユーザー: {:?}", new_room.members()));
@@ -50,11 +52,8 @@ pub async fn create(
         members = new_room
             .members()
             .iter()
-            .filter_map(|id| users.find(id))
-            .map(|user| UserInfo::from(user))
+            .map(|id| UserInfo::from(users.find(id).unwrap()))
             .collect();
-
-        members.push(UserInfo::from(users.find(new_room.user_id()).unwrap()));
     }
     let mut rooms = room_list.lock().unwrap();
     // roomの存在確認
@@ -81,6 +80,7 @@ pub async fn create(
     // RoomListに新しいroomを追加
     rooms.0.push(Room::new(id, members));
 
+    info!("create");
     Response::ok("create new room")
 }
 

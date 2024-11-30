@@ -50,8 +50,7 @@ pub async fn add(
         }
     } else {
         if let Some(user) = friends.0.insert(id.to_string(), vec![friend]) {
-            let message = format!("FriendList insert error found: {:#?}", user);
-            Response::error(message);
+            Response::error(format!("FriendList insert error found: {:#?}", user));
         }
         Response::error("not found user and friend list")
     }

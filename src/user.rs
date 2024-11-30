@@ -15,7 +15,9 @@ use crate::{
 
 pub async fn login(user_list: Data<Mutex<UserList>>, Json(login): Json<LoginInfo>) -> HttpResponse {
     let user_list = user_list.lock().unwrap();
+    // ログインするユーザーが存在するか
     if let Some(user) = user_list.find(login.id()) {
+        // パスワードの確認
         if user.password() == login.password() {
             info!("login: {:?}", user);
             Response::ok(LoginInfo::new(
@@ -37,20 +39,18 @@ pub async fn create(
 ) -> HttpResponse {
     let mut users = user_list.lock().unwrap();
 
+    // ユーザーがすでに存在しているか
     if !users.exist(user.id()) {
-        let res = User::new(
-            user.name().to_string(),
-            user.id().to_string(),
-            user.password().to_string(),
-        );
-        users.0.push(user);
+        // ユーザーリストに保存
+        users.0.push(user.clone());
 
+        // フレンドリストを作成
         let mut frineds = friend_list.lock().unwrap();
-        frineds.0.insert(res.id().clone(), Vec::new());
+        frineds.0.insert(user.id().clone(), Vec::new());
 
         info!("{:#?}", users.0);
 
-        Response::ok(res)
+        Response::ok(user)
     } else {
         Response::error("this user already exists")
     }
@@ -60,6 +60,7 @@ pub async fn create(
 pub struct SearchUserInfo {
     name: String,
     id: UserId,
+    // 検索したユーザーのフレンドかどうか
     status: bool,
 }
 
@@ -68,32 +69,46 @@ pub struct SearchUserId {
     id: UserId,
 }
 
+impl SearchUserInfo {
+    pub fn new(user: &UserInfo, status: bool) -> SearchUserInfo {
+        SearchUserInfo {
+            name: user.name().clone(),
+            id: user.id().clone(),
+            status,
+        }
+    }
+}
+
 pub async fn search(
     search: Query<UserInfo>,
     user_list: Data<Mutex<UserList>>,
     friend_list: Data<Mutex<FriendList>>,
     Json(user_id): Json<SearchUserId>,
 ) -> HttpResponse {
-    let user_id = &user_id.id;
+    let user_id = &user_id.id; // ログインしているユーザーのid,このユーザーは探さない
     let users = user_list.lock().unwrap();
+    // nameまたはidに検索した文字列を含むユーザーを探す
     let users: Vec<UserInfo> = users
-        .iter()
-        .filter(|&u| u.id().contains(search.id()) || u.name().contains(search.name()))
+        .serach(search.0)
         .filter(|&u| u.id() != user_id)
         .map(|user| UserInfo::from(user))
         .collect();
-    let friends = friend_list.lock().unwrap();
-    let friends = friends.0.get(user_id).unwrap();
-    let search_users = users.iter().map(|u| SearchUserInfo {
-        name: u.name().to_string(),
-        id: u.id().to_string(),
-        status: friends.iter().any(|f| f.id() == u.id()),
-    });
 
-    let search_users = search_users.collect::<Vec<SearchUserInfo>>();
+    let friends = friend_list.lock().unwrap();
+    info!("{:?} {:?} {:?}", users, user_id, friends);
+    let friends = friends.0.get(user_id).unwrap();
+    let search_users = users
+        .iter()
+        // 検索したユーザーのフレンドかどうか
+        .map(|u| SearchUserInfo::new(u, friends.iter().any(|f| f.id() == u.id())))
+        .collect::<Vec<SearchUserInfo>>();
+
     Response::ok(search_users)
 }
 
+/// ユーザーの情報
+///
+/// `AccountInfo`
 #[get("/{id}")]
 pub async fn info(
     path: Path<UserId>,
@@ -101,18 +116,18 @@ pub async fn info(
     friend_list: Data<Mutex<FriendList>>,
 ) -> HttpResponse {
     let id = path.into_inner();
-    let users = user_list.lock().unwrap();
-    if let Some(user) = users.find(&id) {
-        let user_info = &UserInfo::from(user);
-        info!("user info: {:?}", user);
+
+    // ユーザーを探す
+    if let Some(user) = user_list.lock().unwrap().find(&id) {
         let friends = friend_list.lock().unwrap();
+
         if let Some(friends) = friends.0.get(&id) {
-            Response::ok(AccountInfo::new(friends, user_info))
+            let account = AccountInfo::new(friends, &UserInfo::from(user));
+            Response::ok(account)
         } else {
-            Response::ok("not found friend_list")
+            Response::error("not found friend_list")
         }
     } else {
-        info!("not found user: {}", id);
         Response::error("not found user")
     }
 }
