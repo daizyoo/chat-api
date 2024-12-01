@@ -150,6 +150,7 @@ mod test {
 
     use anyhow::Result;
 
+    use serde_json::Value;
     use sqlx::MySqlPool;
 
     pub async fn connect() -> Result<MySqlPool> {
@@ -162,5 +163,49 @@ mod test {
         let pool = connect().await?;
         pool.close().await;
         Ok(())
+    }
+
+    #[derive(Debug)]
+    struct User {
+        id: String,
+        name: String,
+        password: String,
+        friends: Friends,
+    }
+
+    struct QueryUser {
+        id: String,
+        name: String,
+        password: String,
+        friends: Value,
+    }
+
+    #[derive(Debug)]
+    struct Friends {
+        list: Vec<String>,
+    }
+
+    impl From<Friends> for Value {
+        fn from(friends: Friends) -> Self {
+            serde_json::json!({ "list": friends.list })
+        }
+    }
+
+    /// mysqlに保存されたJson形式の {"list": [...]}をFriendsに変換する
+    impl From<Value> for Friends {
+        fn from(value: Value) -> Self {
+            Self {
+                list: value
+                    .as_object()
+                    .unwrap()
+                    .get("list")
+                    .unwrap()
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_str().unwrap().to_string())
+                    .collect::<Vec<String>>(),
+            }
+        }
     }
 }
