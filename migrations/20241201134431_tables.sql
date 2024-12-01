@@ -18,5 +18,5 @@ CREATE TABLE IF NOT EXISTS message (
     room_id INT,
     text VARCHAR(255) NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (room_id) REFERENCES room(id),
+    FOREIGN KEY (room_id) REFERENCES room(id)
 );
