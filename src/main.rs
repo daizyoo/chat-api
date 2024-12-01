@@ -165,6 +165,37 @@ mod test {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn select_user() -> Result<()> {
+        let pool = connect().await?;
+        let user = sqlx::query_as!(User, "SELECT * FROM users")
+            .fetch_all(&pool)
+            .await?;
+        println!("{:#?}", user);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn insert_user() -> Result<()> {
+        let pool = connect().await?;
+        let user = QueryUser {
+            id: "id".to_string(),
+            name: "test".to_string(),
+            password: "password".to_string(),
+            friends: Friends { list: vec![] }.into(),
+        };
+        sqlx::query!(
+            "INSERT INTO users (id, name, password, friends) VALUES (?, ?, ?, ?)",
+            user.id,
+            user.name,
+            user.password,
+            user.friends
+        )
+        .execute(&pool)
+        .await?;
+        Ok(())
+    }
+
     #[derive(Debug)]
     struct User {
         id: String,
