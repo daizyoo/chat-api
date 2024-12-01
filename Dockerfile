@@ -6,9 +6,7 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-COPY ./src ./src
-COPY ./Cargo.toml ./Cargo.toml
-COPY .env .env
+COPY . .
 
 RUN cargo build
 
