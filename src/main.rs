@@ -88,7 +88,7 @@ impl RoomList {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
-    dotenvy::dotenv()?;
+    dotenvy::dotenv().expect("Failed to load .env file");
 
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
