@@ -16,11 +16,6 @@ anyhow = "1.0"
 dotenvy = "0.15.7"
 
 tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.17", features = [
-  "std",
-  "env-filter",
-  "time",
-  "local-time",
-] }
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 
 sqlx = { version = "0.8", features = ["mysql", "runtime-tokio"] }
