@@ -9,6 +9,7 @@ WORKDIR /app
 COPY . .
 
 RUN cargo build
+RUN cargo install sqlx-cli
 
 EXPOSE 3478
 
