@@ -99,9 +99,6 @@ pub struct CreateRoom {
 }
 
 impl User {
-    pub const fn new(name: String, id: String, password: String) -> User {
-        User { name, id, password }
-    }
     pub const fn name(&self) -> &String {
         &self.name
     }
@@ -157,9 +154,6 @@ impl AddFriend {
 }
 
 impl GetMessages {
-    pub const fn new(room_id: RoomId, user: LoginInfo) -> GetMessages {
-        GetMessages { room_id, user }
-    }
     pub const fn room_id(&self) -> RoomId {
         self.room_id
     }
@@ -172,9 +166,6 @@ impl GetMessages {
 }
 
 impl MessageInfo {
-    pub const fn new(room: RoomId, text: String, user: LoginInfo) -> MessageInfo {
-        MessageInfo { room, text, user }
-    }
     pub const fn id(&self) -> RoomId {
         self.room
     }
