@@ -107,7 +107,7 @@ pub struct MessageInfo {
 #[derive(Debug, Deserialize)]
 pub struct GetMessages {
     room_id: RoomId,
-    user: LoginInfo,
+    user: User,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -184,14 +184,20 @@ impl GetMessages {
     pub const fn user_id(&self) -> &UserId {
         self.user.id()
     }
+    pub const fn user_name(&self) -> &String {
+        &self.user.name()
+    }
     pub const fn user_password(&self) -> &String {
         self.user.password()
     }
 }
 
 impl MessageInfo {
-    pub const fn id(&self) -> RoomId {
+    pub const fn room_id(&self) -> RoomId {
         self.room
+    }
+    pub const fn user_id(&self) -> &UserId {
+        &self.user.id()
     }
     pub const fn text(&self) -> &String {
         &self.text

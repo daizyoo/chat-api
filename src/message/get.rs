@@ -1,42 +1,45 @@
+use serde::Serialize;
+use serde_json::Value;
+
+use crate::types::UserInfo;
+
 use super::*;
 
-pub async fn get_message(
-    message_list: Data<Mutex<MessageList>>,
-    user_list: Data<Mutex<UserList>>,
-    room_list: Data<Mutex<RoomList>>,
-    Json(get): Json<GetMessages>,
-) -> HttpResponse {
-    let rooms = room_list.lock().unwrap();
-    if let Some(room) = rooms.find(&get.room_id()) {
-        let users = user_list.lock().unwrap();
+struct QueryRoom {
+    id: i64,
+    members: Value,
+}
 
-        // room memberの中にリクエストしてきたユーザーがいるか
-        if room
-            .members()
-            .iter()
-            .find(|u| u.id() == get.user_id())
-            .is_some()
-        {
-            // そのユーザーが存在するか
-            if let Some(user) = users.find(get.user_id()) {
-                // パスワードがあっていたらメッセージを返す
-                if user.password() == get.user_password() {
-                    let list = message_list.lock().unwrap();
-                    if let Some(vec) = list.0.get(&room.id()) {
-                        Response::ok(vec)
-                    } else {
-                        Response::error(format!("not found messages: {}", get.room_id()))
-                    }
-                } else {
-                    Response::error(format!("no match password: {}", get.user_password()))
-                }
-            } else {
-                Response::error(format!("not found request user: {}", get.user_id()))
-            }
-        } else {
-            Response::error(format!("are you room member?: {}", get.room_id()))
-        }
-    } else {
-        Response::error(format!("not found room id: {}", get.room_id()))
-    }
+struct QueryMessage {
+    user_id: String,
+    room_id: i32,
+    text: String,
+}
+
+#[derive(Debug, Serialize)]
+struct Message {
+    text: String,
+    user: UserInfo,
+}
+
+pub async fn get_message(db: Data<Database>, Json(get): Json<GetMessages>) -> Result<HttpResponse> {
+    let _ = sqlx::query_as!(QueryRoom, "SELECT * FROM room WHERE id = ?", get.room_id())
+        .fetch_one(&db.pool)
+        .await?;
+    let message = sqlx::query_as!(
+        QueryMessage,
+        "SELECT * FROM message WHERE room_id = ?",
+        get.room_id()
+    )
+    .fetch_all(&db.pool)
+    .await?;
+
+    let message: Vec<Message> = message
+        .iter()
+        .map(|m| Message {
+            text: m.text.clone(),
+            user: UserInfo::new(get.user_name().clone(), m.user_id.clone()),
+        })
+        .collect();
+    Ok(Response::ok(message))
 }
