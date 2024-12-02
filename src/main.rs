@@ -4,7 +4,7 @@ mod room;
 mod types;
 mod user;
 
-use std::{collections::HashMap, env};
+use std::env;
 
 use actix_cors::Cors;
 use actix_web::{
@@ -17,68 +17,7 @@ use serde_json::Value;
 use sqlx::MySqlPool;
 use tracing_subscriber::EnvFilter;
 
-use types::{Message, Room, RoomId, User, UserId, UserInfo};
-
-#[derive(Debug)]
-struct RoomList(Vec<Room>);
-
-#[derive(Debug)]
-struct MessageList(HashMap<RoomId, Vec<Message>>);
-
-#[derive(Debug)]
-struct FriendList(HashMap<UserId, Vec<UserInfo>>);
-
-#[derive(Debug)]
-struct UserList(Vec<User>);
-
-trait DataList {
-    type Data;
-    type ID;
-    /// idの要素が存在するか
-    fn exist(&self, id: &Self::ID) -> bool;
-    /// idの要素を探す
-    fn find(&self, id: &Self::ID) -> Option<&Self::Data>;
-    /// iterにする
-    fn iter(&self) -> std::slice::Iter<'_, Self::Data>;
-}
-
-impl DataList for UserList {
-    type Data = User;
-    type ID = UserId;
-
-    fn exist(&self, id: &Self::ID) -> bool {
-        self.0.iter().any(|u| u.id() == id)
-    }
-    fn find(&self, id: &Self::ID) -> Option<&Self::Data> {
-        self.iter().find(|user| user.id() == id)
-    }
-    fn iter(&self) -> std::slice::Iter<'_, Self::Data> {
-        self.0.iter()
-    }
-}
-
-impl DataList for RoomList {
-    type Data = Room;
-    type ID = RoomId;
-
-    fn exist(&self, id: &Self::ID) -> bool {
-        self.0.iter().any(|room| room.id() == id)
-    }
-    fn find(&self, id: &Self::ID) -> Option<&Self::Data> {
-        self.iter().find(|room| room.id() == id)
-    }
-    fn iter(&self) -> std::slice::Iter<'_, Self::Data> {
-        self.0.iter()
-    }
-}
-
-impl RoomList {
-    fn new_id(&self) -> u32 {
-        let mut ids = self.iter().map(|r| *r.id()).collect::<Vec<RoomId>>();
-        ids.sort();
-        ids.last().unwrap_or(&0) + 1
-    }
-}
+use types::{Room, UserId};
 
 struct Database {
     pub pool: MySqlPool,
@@ -123,7 +62,7 @@ struct DBUser {
     id: String,
     name: String,
     password: String,
-    friends: Friends,
+    friends: UserList,
 }
 
 #[derive(Debug)]
@@ -135,18 +74,18 @@ struct QueryUser {
 }
 
 #[derive(Debug)]
-struct Friends {
+struct UserList {
     list: Vec<String>,
 }
 
-impl From<Friends> for Value {
-    fn from(friends: Friends) -> Self {
+impl From<UserList> for Value {
+    fn from(friends: UserList) -> Self {
         serde_json::json!({ "list": friends.list })
     }
 }
 
 /// mysqlに保存されたJson形式の {"list": [...]}をFriendsに変換する
-impl From<Value> for Friends {
+impl From<Value> for UserList {
     fn from(value: Value) -> Self {
         Self {
             list: value
@@ -171,7 +110,7 @@ mod test {
 
     use sqlx::MySqlPool;
 
-    use crate::{DBUser, Friends, QueryUser};
+    use crate::{DBUser, QueryUser, UserList};
 
     pub async fn connect() -> Result<MySqlPool> {
         dotenvy::dotenv()?;
@@ -212,7 +151,7 @@ mod test {
             id: "id".to_string(),
             name: "test".to_string(),
             password: "password".to_string(),
-            friends: Friends { list: vec![] }.into(),
+            friends: UserList { list: vec![] }.into(),
         };
         sqlx::query!(
             "INSERT INTO users (id, name, password, friends) VALUES (?, ?, ?, ?)",

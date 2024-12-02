@@ -18,7 +18,7 @@ pub async fn add(db: Data<Database>, Json(add_friend): Json<AddFriend>) -> Resul
     .fetch_one(&db.pool)
     .await?;
 
-    let mut friends: Friends = user.friends.into();
+    let mut friends: UserList = user.friends.into();
     friends.list.push(friend.id);
     let result = sqlx::query!(
         "UPDATE users SET friends = JSON_SET(friends, '$.list', ?) WHERE id = ?",

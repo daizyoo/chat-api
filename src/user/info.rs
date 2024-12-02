@@ -1,5 +1,3 @@
-use crate::Friends;
-
 use super::*;
 
 use actix_web::get;
@@ -18,7 +16,7 @@ pub async fn info(path: Path<UserId>, db: Data<Database>) -> HttpResponse {
     match result {
         Ok(user) => {
             let mut friends = Vec::new();
-            let user_friends: Friends = user.friends.into();
+            let user_friends: UserList = user.friends.into();
             for id in user_friends.list {
                 friends.push(get_user_info(&id, &db).await.unwrap());
             }

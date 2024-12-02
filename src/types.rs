@@ -2,12 +2,16 @@ use actix_web::{cookie::CookieBuilder, http::StatusCode, HttpResponse, ResponseE
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
+use crate::UserList;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("an unspecified internal error occurred: {0}")]
     InternalError(#[from] anyhow::Error),
     #[error("an unhandled database error occurred")]
     DatabaseError(#[from] sqlx::Error),
+    #[error("not friends")]
+    NotFriends,
 }
 
 impl ResponseError for Error {
@@ -15,6 +19,7 @@ impl ResponseError for Error {
         match &self {
             Self::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::NotFriends => StatusCode::BAD_REQUEST,
         }
     }
 
@@ -55,7 +60,7 @@ impl<T: Serialize + std::fmt::Debug> Response<T> {
     }
 }
 
-pub type RoomId = u32;
+pub type RoomId = i32;
 
 pub type UserId = String;
 
@@ -113,7 +118,7 @@ pub struct GetMessages {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Room {
     id: RoomId,
-    members: Vec<UserInfo>,
+    members: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -229,13 +234,13 @@ impl CreateRoom {
 }
 
 impl Room {
-    pub const fn new(id: RoomId, members: Vec<UserInfo>) -> Room {
+    pub const fn new(id: RoomId, members: Vec<String>) -> Room {
         Room { id, members }
     }
     pub const fn id(&self) -> &RoomId {
         &self.id
     }
-    pub const fn members(&self) -> &Vec<UserInfo> {
+    pub const fn members(&self) -> &Vec<String> {
         &self.members
     }
 }
@@ -243,14 +248,5 @@ impl Room {
 impl From<&User> for UserInfo {
     fn from(user: &User) -> Self {
         UserInfo::new(user.name.to_string(), user.id.to_string())
-    }
-}
-
-impl From<(&RoomId, Vec<UserInfo>)> for Room {
-    fn from(value: (&RoomId, Vec<UserInfo>)) -> Self {
-        Room {
-            id: *value.0,
-            members: value.1,
-        }
     }
 }

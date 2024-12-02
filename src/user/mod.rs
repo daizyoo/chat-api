@@ -19,7 +19,7 @@ use crate::{
     types::{AccountInfo, LoginInfo, Response, User, UserInfo},
     UserId,
 };
-use crate::{DBUser, Database, Friends, QueryUser};
+use crate::{DBUser, Database, QueryUser, UserList};
 
 pub fn user_service_config(cfg: &mut ServiceConfig) {
     cfg.route("/create", post().to(create))

@@ -13,7 +13,7 @@ pub async fn search(
     let Ok(user) = user else {
         return Response::error("not found your id");
     };
-    let user_friends: Friends = user.friends.into();
+    let user_friends: UserList = user.friends.into();
 
     let result = sqlx::query_as!(
         QueryUser,
