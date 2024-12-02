@@ -1,6 +1,30 @@
-use actix_web::{cookie::CookieBuilder, HttpResponse};
+use actix_web::{cookie::CookieBuilder, http::StatusCode, HttpResponse, ResponseError};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("an unspecified internal error occurred: {0}")]
+    InternalError(#[from] anyhow::Error),
+    #[error("an unhandled database error occurred")]
+    DatabaseError(#[from] sqlx::Error),
+}
+
+impl ResponseError for Error {
+    fn status_code(&self) -> StatusCode {
+        match &self {
+            Self::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
+    fn error_response(&self) -> HttpResponse {
+        HttpResponse::build(self.status_code()).body(self.to_string())
+    }
+}
+
+// Short hand alias, which allows you to use just Result<T>
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Serialize)]
 pub struct Response<T: Serialize + std::fmt::Debug = bool> {
