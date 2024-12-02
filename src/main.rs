@@ -97,7 +97,7 @@ async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().expect("Failed to load .env file");
 
     let pool = MySqlPool::connect(&env::var("DATABASE_URL")?).await?;
-    let pool = Data::new(Mutex::new(Database { pool }));
+    let db = Data::new(Database { pool });
 
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
@@ -117,7 +117,7 @@ async fn main() -> anyhow::Result<()> {
             .service(scope("/room").configure(room::room_service_config))
             .service(scope("/user").configure(user::user_service_config))
             .service(scope("/friend").configure(friend::friend_service_config))
-            .app_data(pool.clone())
+            .app_data(db.clone())
     })
     .bind(("127.0.0.1", 3478))?
     .run()
