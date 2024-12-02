@@ -19,7 +19,7 @@ use tracing::info;
 
 use crate::{
     types::{AccountInfo, LoginInfo, Response, User, UserInfo},
-    DataList, FriendList, UserId, UserList,
+    FriendList, UserId, UserList,
 };
 use crate::{DBUser, Database};
 

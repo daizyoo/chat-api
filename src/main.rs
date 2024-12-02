@@ -4,7 +4,7 @@ mod room;
 mod types;
 mod user;
 
-use std::{collections::HashMap, env, sync::Mutex};
+use std::{collections::HashMap, env};
 
 use actix_cors::Cors;
 use actix_web::{
