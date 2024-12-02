@@ -1,16 +1,5 @@
-use std::sync::Mutex;
+use super::*;
 
-use actix_web::{
-    web::{Data, Json},
-    HttpResponse,
-};
-
-use crate::{
-    types::{AddFriend, Response, UserInfo},
-    DataList, FriendList, UserList,
-};
-
-/// add friend
 pub async fn add(
     friends: Data<Mutex<FriendList>>,
     users: Data<Mutex<UserList>>,
@@ -54,28 +43,4 @@ pub async fn add(
         }
         Response::error("not found user and friend list")
     }
-}
-
-pub async fn get(
-    friends: Data<Mutex<FriendList>>,
-    users: Data<Mutex<UserList>>,
-    Json(user): Json<UserInfo>,
-) -> HttpResponse {
-    {
-        let users = users.lock().unwrap();
-        if !users.exist(user.id()) {
-            return Response::error("not found user");
-        }
-    }
-    let friends = friends.lock().unwrap();
-    if let Some(vec) = friends.0.get(user.id()) {
-        Response::ok(vec)
-    } else {
-        Response::error("not found friend list")
-    }
-}
-
-/// delete friend
-pub async fn delete() -> HttpResponse {
-    Response::ok("non implement")
 }
