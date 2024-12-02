@@ -8,8 +8,6 @@ pub use info::info as user_info;
 pub use login::login;
 pub use search::search;
 
-use std::sync::Mutex;
-
 use actix_web::{
     web::{post, Data, Json, Path, Query, ServiceConfig},
     HttpResponse,
@@ -19,9 +17,9 @@ use tracing::info;
 
 use crate::{
     types::{AccountInfo, LoginInfo, Response, User, UserInfo},
-    FriendList, UserId, UserList,
+    UserId,
 };
-use crate::{DBUser, Database};
+use crate::{DBUser, Database, Friends, QueryUser};
 
 pub fn user_service_config(cfg: &mut ServiceConfig) {
     cfg.route("/create", post().to(create))
@@ -54,7 +52,7 @@ impl SearchUserInfo {
 }
 
 async fn get_user_info(id: &UserId, db: &Database) -> anyhow::Result<UserInfo> {
-    let result = sqlx::query_as!(DBUser, "SELECT * FROM users WHERE id = ?", id)
+    let result = sqlx::query_as!(QueryUser, "SELECT * FROM users WHERE id = ?", id)
         .fetch_one(&db.pool)
         .await;
     match result {

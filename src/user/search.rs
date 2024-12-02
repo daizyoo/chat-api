@@ -2,27 +2,38 @@ use super::*;
 
 pub async fn search(
     search: Query<UserInfo>,
-    user_list: Data<Mutex<UserList>>,
-    friend_list: Data<Mutex<FriendList>>,
+    db: Data<Database>,
     Json(user_id): Json<SearchUserId>,
 ) -> HttpResponse {
-    let user_id = &user_id.id; // ログインしているユーザーのid,このユーザーは探さない
-    let users = user_list.lock().unwrap();
-    // nameまたはidに検索した文字列を含むユーザーを探す
-    let users: Vec<UserInfo> = users
-        .serach(search.0)
-        .filter(|&u| u.id() != user_id)
-        .map(|user| UserInfo::from(user))
-        .collect();
+    let search_name = format!("%{}%", search.0.id());
+    let user = sqlx::query_as!(QueryUser, "SELECT * FROM users WHERE id = ?", user_id.id)
+        .fetch_one(&db.pool)
+        .await;
 
-    let friends = friend_list.lock().unwrap();
-    info!("{:?} {:?} {:?}", users, user_id, friends);
-    let friends = friends.0.get(user_id).unwrap();
-    let search_users = users
-        .iter()
-        // 検索したユーザーのフレンドかどうか
-        .map(|u| SearchUserInfo::new(u, friends.iter().any(|f| f.id() == u.id())))
-        .collect::<Vec<SearchUserInfo>>();
+    let Ok(user) = user else {
+        return Response::error("not found your id");
+    };
+    let user_friends: Friends = user.friends.into();
 
-    Response::ok(search_users)
+    let result = sqlx::query_as!(
+        QueryUser,
+        "SELECT * FROM users WHERE id != ? AND name like ?",
+        user_id.id,
+        search_name
+    )
+    .fetch_all(&db.pool)
+    .await;
+
+    match result {
+        Ok(users) => {
+            let search_users = users
+                .iter()
+                .map(|u| UserInfo::new(u.name.clone(), u.id.clone()))
+                .map(|u| SearchUserInfo::new(&u, user_friends.list.contains(&u.id())))
+                .collect::<Vec<SearchUserInfo>>();
+
+            return Response::ok(search_users);
+        }
+        Err(e) => Response::error(e.to_string()),
+    }
 }

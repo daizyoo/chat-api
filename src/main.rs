@@ -42,14 +42,6 @@ trait DataList {
     fn iter(&self) -> std::slice::Iter<'_, Self::Data>;
 }
 
-impl UserList {
-    fn serach(&self, user: UserInfo) -> impl Iterator<Item = &User> {
-        self.0
-            .iter()
-            .filter(move |&u| u.id().contains(user.id()) || u.name().contains(user.name()))
-    }
-}
-
 impl DataList for UserList {
     type Data = User;
     type ID = UserId;
@@ -134,6 +126,7 @@ struct DBUser {
     friends: Friends,
 }
 
+#[derive(Debug)]
 struct QueryUser {
     id: String,
     name: String,
