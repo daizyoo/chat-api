@@ -4,7 +4,6 @@ use super::*;
 use crate::Database;
 
 pub async fn create(db: Data<Database>, Json(user): Json<User>) -> HttpResponse {
-    let pool = &db.pool;
     let result = sqlx::query!(
         "INSERT INTO users (name, id, password ,friends) VALUES (?, ?, ?, ?)",
         user.name(),
@@ -12,7 +11,7 @@ pub async fn create(db: Data<Database>, Json(user): Json<User>) -> HttpResponse 
         user.password(),
         json!({"list": []}),
     )
-    .execute(pool)
+    .execute(&db.pool)
     .await;
 
     match result {
