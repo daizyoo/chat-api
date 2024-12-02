@@ -127,7 +127,7 @@ async fn main() -> anyhow::Result<()> {
                     .route("/create", post().to(user::create))
                     .route("/login", post().to(user::login))
                     .route("/search", post().to(user::search))
-                    .service(user::info),
+                    .service(user::user_info),
             )
             .service(
                 scope("/friend")
