@@ -1,25 +1,25 @@
+use serde_json::json;
+
 use super::*;
+use crate::Database;
 
-pub async fn create(
-    user_list: Data<Mutex<UserList>>,
-    friend_list: Data<Mutex<FriendList>>,
-    Json(user): Json<User>,
-) -> HttpResponse {
-    let mut users = user_list.lock().unwrap();
+pub async fn create(db: Data<Database>, Json(user): Json<User>) -> HttpResponse {
+    let pool = &db.pool;
+    let result = sqlx::query!(
+        "INSERT INTO users (name, id, password ,friends) VALUES (?, ?, ?, ?)",
+        user.name(),
+        user.id(),
+        user.password(),
+        json!({"list": []}),
+    )
+    .execute(pool)
+    .await;
 
-    // ユーザーがすでに存在しているか
-    if !users.exist(user.id()) {
-        // ユーザーリストに保存
-        users.0.push(user.clone());
-
-        // フレンドリストを作成
-        let mut frineds = friend_list.lock().unwrap();
-        frineds.0.insert(user.id().clone(), Vec::new());
-
-        info!("{:#?}", users.0);
-
-        Response::ok(user)
-    } else {
-        Response::error("this user already exists")
+    match result {
+        Ok(o) => {
+            info!("{:#?}", o);
+            Response::ok("successcreate user")
+        }
+        Err(e) => Response::error(e.to_string()),
     }
 }

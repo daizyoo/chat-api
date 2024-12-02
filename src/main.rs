@@ -13,6 +13,7 @@ use actix_web::{
     App, HttpServer,
 };
 
+use serde_json::Value;
 use sqlx::MySqlPool;
 use tracing_subscriber::EnvFilter;
 
@@ -88,7 +89,7 @@ impl RoomList {
 }
 
 struct Database {
-    pool: MySqlPool,
+    pub pool: MySqlPool,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -125,14 +126,59 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug)]
+struct DBUser {
+    id: String,
+    name: String,
+    password: String,
+    friends: Friends,
+}
+
+struct QueryUser {
+    id: String,
+    name: String,
+    password: String,
+    friends: Value,
+}
+
+#[derive(Debug)]
+struct Friends {
+    list: Vec<String>,
+}
+
+impl From<Friends> for Value {
+    fn from(friends: Friends) -> Self {
+        serde_json::json!({ "list": friends.list })
+    }
+}
+
+/// mysqlに保存されたJson形式の {"list": [...]}をFriendsに変換する
+impl From<Value> for Friends {
+    fn from(value: Value) -> Self {
+        Self {
+            list: value
+                .as_object()
+                .unwrap()
+                .get("list")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap().to_string())
+                .collect::<Vec<String>>(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::env;
 
     use anyhow::Result;
 
-    use serde_json::Value;
     use sqlx::MySqlPool;
+
+    use crate::{DBUser, Friends, QueryUser};
 
     pub async fn connect() -> Result<MySqlPool> {
         dotenvy::dotenv()?;
@@ -153,7 +199,7 @@ mod test {
         let user_name = String::from("name");
 
         let users = sqlx::query_as!(
-            User,
+            DBUser,
             "SELECT * FROM users WHERE id = ? OR name = ?",
             user_name,
             user_name
@@ -185,49 +231,5 @@ mod test {
         .execute(&pool)
         .await?;
         Ok(())
-    }
-
-    #[derive(Debug)]
-    struct User {
-        id: String,
-        name: String,
-        password: String,
-        friends: Friends,
-    }
-
-    struct QueryUser {
-        id: String,
-        name: String,
-        password: String,
-        friends: Value,
-    }
-
-    #[derive(Debug)]
-    struct Friends {
-        list: Vec<String>,
-    }
-
-    impl From<Friends> for Value {
-        fn from(friends: Friends) -> Self {
-            serde_json::json!({ "list": friends.list })
-        }
-    }
-
-    /// mysqlに保存されたJson形式の {"list": [...]}をFriendsに変換する
-    impl From<Value> for Friends {
-        fn from(value: Value) -> Self {
-            Self {
-                list: value
-                    .as_object()
-                    .unwrap()
-                    .get("list")
-                    .unwrap()
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|v| v.as_str().unwrap().to_string())
-                    .collect::<Vec<String>>(),
-            }
-        }
     }
 }
