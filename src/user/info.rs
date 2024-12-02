@@ -6,24 +6,23 @@ use actix_web::get;
 ///
 /// `AccountInfo`
 #[get("/{id}")]
-pub async fn info(
-    path: Path<UserId>,
-    user_list: Data<Mutex<UserList>>,
-    friend_list: Data<Mutex<FriendList>>,
-) -> HttpResponse {
+pub async fn info(path: Path<UserId>, db: Data<Database>) -> HttpResponse {
     let id = path.into_inner();
 
-    // ユーザーを探す
-    if let Some(user) = user_list.lock().unwrap().find(&id) {
-        let friends = friend_list.lock().unwrap();
+    let result = sqlx::query_as!(DBUser, "SELECT * FROM users WHERE id = ?", id)
+        .fetch_one(&db.pool)
+        .await;
 
-        if let Some(friends) = friends.0.get(&id) {
-            let account = AccountInfo::new(friends, &UserInfo::from(user));
+    match result {
+        Ok(user) => {
+            let mut friends = Vec::new();
+            for id in user.friends.list {
+                friends.push(get_user_info(&id, &db).await.unwrap());
+            }
+
+            let account = AccountInfo::new(UserInfo::new(user.name, user.id), friends);
             Response::ok(account)
-        } else {
-            Response::error("not found friend_list")
         }
-    } else {
-        Response::error("not found user")
+        Err(e) => Response::error(e.to_string()),
     }
 }

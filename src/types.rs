@@ -135,11 +135,11 @@ impl LoginInfo {
 }
 
 impl AccountInfo {
-    pub fn new(friends: &Vec<UserInfo>, user: &UserInfo) -> AccountInfo {
+    pub fn new(user: UserInfo, friends: Vec<UserInfo>) -> AccountInfo {
         AccountInfo {
-            friends: friends.clone(),
-            name: user.name().clone(),
-            id: user.id().clone(),
+            friends,
+            name: user.name.clone(),
+            id: user.id.clone(),
         }
     }
 }

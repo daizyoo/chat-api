@@ -21,6 +21,7 @@ use crate::{
     types::{AccountInfo, LoginInfo, Response, User, UserInfo},
     DataList, FriendList, UserId, UserList,
 };
+use crate::{DBUser, Database};
 
 pub fn user_service_config(cfg: &mut ServiceConfig) {
     cfg.route("/create", post().to(create))
@@ -49,5 +50,15 @@ impl SearchUserInfo {
             id: user.id().clone(),
             status,
         }
+    }
+}
+
+async fn get_user_info(id: &UserId, db: &Database) -> anyhow::Result<UserInfo> {
+    let result = sqlx::query_as!(DBUser, "SELECT * FROM users WHERE id = ?", id)
+        .fetch_one(&db.pool)
+        .await;
+    match result {
+        Ok(user) => Ok(UserInfo::new(user.name, user.id)),
+        Err(e) => anyhow::bail!(e),
     }
 }
