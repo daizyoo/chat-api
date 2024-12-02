@@ -9,7 +9,7 @@ use std::{collections::HashMap, env, sync::Mutex};
 use actix_cors::Cors;
 use actix_web::{
     http::header,
-    web::{post, scope, Data},
+    web::{scope, Data},
     App, HttpServer,
 };
 
@@ -112,29 +112,10 @@ async fn main() -> anyhow::Result<()> {
                     .allowed_header(header::CONTENT_TYPE)
                     .max_age(3600),
             )
-            .service(
-                scope("/message")
-                    .route("/send", post().to(message::send_message))
-                    .route("/get", post().to(message::get_message)),
-            )
-            .service(
-                scope("/room")
-                    .route("/create", post().to(room::create))
-                    .route("/get", post().to(room::get_rooms)),
-            )
-            .service(
-                scope("/user")
-                    .route("/create", post().to(user::create))
-                    .route("/login", post().to(user::login))
-                    .route("/search", post().to(user::search))
-                    .service(user::user_info),
-            )
-            .service(
-                scope("/friend")
-                    .route("/add", post().to(friend::add))
-                    .route("/search", post().to(friend::get))
-                    .route("/delete", post().to(friend::delete)),
-            )
+            .service(scope("/message").configure(message::message_service_config))
+            .service(scope("/room").configure(room::room_service_config))
+            .service(scope("/user").configure(user::user_service_config))
+            .service(scope("/friend").configure(friend::friend_service_config))
             .app_data(pool.clone())
     })
     .bind(("127.0.0.1", 3478))?

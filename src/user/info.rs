@@ -1,5 +1,7 @@
 use super::*;
 
+use actix_web::get;
+
 /// ユーザーの情報
 ///
 /// `AccountInfo`

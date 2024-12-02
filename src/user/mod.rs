@@ -11,8 +11,7 @@ pub use search::search;
 use std::sync::Mutex;
 
 use actix_web::{
-    get,
-    web::{Data, Json, Path, Query},
+    web::{post, Data, Json, Path, Query, ServiceConfig},
     HttpResponse,
 };
 use serde::{Deserialize, Serialize};
@@ -22,6 +21,13 @@ use crate::{
     types::{AccountInfo, LoginInfo, Response, User, UserInfo},
     DataList, FriendList, UserId, UserList,
 };
+
+pub fn user_service_config(cfg: &mut ServiceConfig) {
+    cfg.route("/create", post().to(create))
+        .route("/login", post().to(login))
+        .route("/search", post().to(search))
+        .service(user_info);
+}
 
 #[derive(Debug, Serialize)]
 pub struct SearchUserInfo {
