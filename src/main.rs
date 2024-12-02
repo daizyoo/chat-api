@@ -17,8 +17,6 @@ use serde_json::Value;
 use sqlx::MySqlPool;
 use tracing_subscriber::EnvFilter;
 
-use types::{Room, UserId};
-
 struct Database {
     pub pool: MySqlPool,
 }

@@ -15,10 +15,7 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use crate::{
-    types::{AccountInfo, LoginInfo, Response, User, UserInfo},
-    UserId,
-};
+use crate::types::{AccountInfo, LoginInfo, Response, User, UserId, UserInfo};
 use crate::{DBUser, Database, QueryUser, UserList};
 
 pub fn user_service_config(cfg: &mut ServiceConfig) {

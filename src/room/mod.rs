@@ -12,10 +12,7 @@ use tracing::info;
 
 use crate::types::Result;
 
-use crate::{
-    types::{CreateRoom, LoginInfo, Response},
-    Room,
-};
+use crate::types::{CreateRoom, LoginInfo, Response, Room};
 use crate::{Database, QueryUser, UserList};
 
 pub fn room_service_config(cfg: &mut ServiceConfig) {

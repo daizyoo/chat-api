@@ -2,8 +2,6 @@ use actix_web::{cookie::CookieBuilder, http::StatusCode, HttpResponse, ResponseE
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
-use crate::UserList;
-
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("an unspecified internal error occurred: {0}")]
@@ -28,7 +26,6 @@ impl ResponseError for Error {
     }
 }
 
-// Short hand alias, which allows you to use just Result<T>
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Serialize)]
