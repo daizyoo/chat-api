@@ -166,17 +166,27 @@ mod test {
     }
 
     #[tokio::test]
-    async fn select_user() -> Result<()> {
+    async fn search_user() -> Result<()> {
         let pool = connect().await?;
-        let user = sqlx::query_as!(User, "SELECT * FROM users")
-            .fetch_all(&pool)
-            .await?;
-        println!("{:#?}", user);
+
+        let user_name = String::from("name");
+
+        let users = sqlx::query_as!(
+            User,
+            "SELECT * FROM users WHERE id = ? OR name = ?",
+            user_name,
+            user_name
+        )
+        .fetch_all(&pool)
+        .await?;
+
+        println!("{:#?}", users);
+
         Ok(())
     }
 
     #[tokio::test]
-    async fn insert_user() -> Result<()> {
+    async fn create_user() -> Result<()> {
         let pool = connect().await?;
         let user = QueryUser {
             id: "id".to_string(),
