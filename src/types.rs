@@ -15,6 +15,8 @@ pub enum Error {
     NotFriends,
     #[error("not match password")]
     NotMatchPassword,
+    #[error("failed to create room")]
+    FailedToCreateRoom,
 }
 
 impl ResponseError for Error {
@@ -25,6 +27,7 @@ impl ResponseError for Error {
             Self::NotFriends => StatusCode::BAD_REQUEST,
             Self::UserAlreadyExists => StatusCode::BAD_REQUEST,
             Self::NotMatchPassword => StatusCode::BAD_REQUEST,
+            Self::FailedToCreateRoom => StatusCode::BAD_REQUEST,
         }
     }
 
