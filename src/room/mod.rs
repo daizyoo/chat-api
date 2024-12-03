@@ -8,7 +8,6 @@ use actix_web::{
     web::{post, Data, Json, ServiceConfig},
     HttpResponse,
 };
-use tracing::info;
 
 use crate::types::{CreateRoom, Error, LoginInfo, QueryUser, Response, Result, Room, UserList};
 use crate::Database;

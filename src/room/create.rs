@@ -1,4 +1,5 @@
 use serde_json::json;
+use tracing::error;
 
 use super::*;
 
@@ -17,7 +18,7 @@ pub async fn create(db: Data<Database>, Json(new_room): Json<CreateRoom>) -> Res
         .filter(|&id| id != new_room.user().id()) // 自分を除外
         .all(|id| friends.list.contains(id))
     {
-        tracing::error!("not friends");
+        error!("not friends");
         return Err(Error::NotFriends.into());
     }
 
@@ -25,6 +26,10 @@ pub async fn create(db: Data<Database>, Json(new_room): Json<CreateRoom>) -> Res
     let execute = sqlx::query!("INSERT INTO room (members) VALUES (?)", members)
         .execute(&db.pool)
         .await?;
+    if execute.last_insert_id() == 0 {
+        error!("failed to create room");
+        return Err(Error::FailedToCreateRoom.into());
+    }
 
     Ok(Response::ok("create room"))
 }
