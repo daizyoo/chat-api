@@ -13,7 +13,7 @@ use actix_web::{
     App, HttpServer,
 };
 
-use serde_json::Value;
+use serde_json::{json, Value};
 use sqlx::MySqlPool;
 use tracing_subscriber::EnvFilter;
 
@@ -78,25 +78,17 @@ struct UserList {
 
 impl From<UserList> for Value {
     fn from(friends: UserList) -> Self {
-        serde_json::json!({ "list": friends.list })
+        json!({ "list": serde_json::to_string(&friends.list).unwrap() })
     }
 }
 
-/// mysqlに保存されたJson形式の {"list": [...]}をFriendsに変換する
+/// mysqlに保存されたJson形式の {"list": [...]}をUserListに変換する
 impl From<Value> for UserList {
     fn from(value: Value) -> Self {
-        Self {
-            list: value
-                .as_object()
-                .unwrap()
-                .get("list")
-                .unwrap()
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| v.as_str().unwrap().to_string())
-                .collect::<Vec<String>>(),
-        }
+        let list = value.as_object().unwrap().get("list").unwrap().as_str();
+
+        let s = serde_json::from_str::<Vec<String>>(list.unwrap()).unwrap();
+        Self { list: s }
     }
 }
 

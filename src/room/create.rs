@@ -6,7 +6,7 @@ pub async fn create(db: Data<Database>, Json(new_room): Json<CreateRoom>) -> Res
     let friends = sqlx::query_as!(
         QueryUser,
         "SELECT * FROM users WHERE id = ?",
-        new_room.user_id()
+        new_room.user().id()
     )
     .fetch_one(&db.pool)
     .await?;

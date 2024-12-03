@@ -20,9 +20,11 @@ pub async fn add(db: Data<Database>, Json(add_friend): Json<AddFriend>) -> Resul
 
     let mut friends: UserList = user.friends.into();
     friends.list.push(friend.id);
+
+    let list = serde_json::to_string(&friends.list).unwrap();
     let result = sqlx::query!(
         "UPDATE users SET friends = JSON_SET(friends, '$.list', ?) WHERE id = ?",
-        serde_json::to_value(friends.list).unwrap(),
+        list,
         user.id
     )
     .execute(&db.pool)

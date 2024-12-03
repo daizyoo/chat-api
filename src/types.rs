@@ -1,4 +1,4 @@
-use actix_web::{cookie::CookieBuilder, http::StatusCode, HttpResponse, ResponseError};
+use actix_web::{http::StatusCode, HttpResponse, ResponseError};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
@@ -8,8 +8,12 @@ pub enum Error {
     InternalError(#[from] anyhow::Error),
     #[error("an unhandled database error occurred")]
     DatabaseError(#[from] sqlx::Error),
+    #[error("user already exists")]
+    UserAlreadyExists,
     #[error("not friends")]
     NotFriends,
+    #[error("not match password")]
+    NotMatchPassword,
 }
 
 impl ResponseError for Error {
@@ -18,6 +22,8 @@ impl ResponseError for Error {
             Self::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::NotFriends => StatusCode::BAD_REQUEST,
+            Self::UserAlreadyExists => StatusCode::BAD_REQUEST,
+            Self::NotMatchPassword => StatusCode::BAD_REQUEST,
         }
     }
 
@@ -42,18 +48,6 @@ impl<T: Serialize + std::fmt::Debug> Response<T> {
     pub fn ok(data: T) -> HttpResponse {
         info!("response: {:#?}", data);
         HttpResponse::Ok().json(Response::new(Some(data), true))
-    }
-
-    pub fn error(data: T) -> HttpResponse {
-        error!("response: {:#?}", data);
-        HttpResponse::Ok().json(Response::new(Some(data), false))
-    }
-    pub fn _set_cookie_ok(data: T, cookie: CookieBuilder) -> HttpResponse {
-        let res = HttpResponse::Ok()
-            .cookie(cookie.finish())
-            .json(Response::new(Some(data), true));
-        info!("{:#?}", res);
-        res
     }
 }
 
@@ -82,9 +76,9 @@ pub struct LoginInfo {
 
 #[derive(Debug, Serialize)]
 pub struct AccountInfo {
-    friends: Vec<UserInfo>,
     name: String,
     id: UserId,
+    friends: Vec<UserInfo>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -183,14 +177,8 @@ impl GetMessages {
     pub const fn room_id(&self) -> RoomId {
         self.room_id
     }
-    pub const fn user_id(&self) -> &UserId {
-        self.user.id()
-    }
     pub const fn user_name(&self) -> &String {
         &self.user.name()
-    }
-    pub const fn user_password(&self) -> &String {
-        self.user.password()
     }
 }
 
@@ -222,11 +210,8 @@ impl CreateRoom {
     pub const fn members(&self) -> &Vec<UserId> {
         &self.members
     }
-    pub const fn user_id(&self) -> &UserId {
-        &self.user.id()
-    }
-    pub const fn user_password(&self) -> &String {
-        &self.user.password()
+    pub const fn user(&self) -> &LoginInfo {
+        &self.user
     }
 }
 
@@ -234,16 +219,10 @@ impl Room {
     pub const fn new(id: RoomId, members: Vec<String>) -> Room {
         Room { id, members }
     }
-    pub const fn id(&self) -> &RoomId {
-        &self.id
-    }
-    pub const fn members(&self) -> &Vec<String> {
-        &self.members
-    }
 }
 
-impl From<&User> for UserInfo {
+impl From<&User> for LoginInfo {
     fn from(user: &User) -> Self {
-        UserInfo::new(user.name.to_string(), user.id.to_string())
+        LoginInfo::new(user.id.clone(), user.password.clone())
     }
 }
