@@ -7,7 +7,9 @@ mod user;
 use std::env;
 
 use actix_cors::Cors;
+use actix_session::{storage::RedisSessionStore, SessionMiddleware};
 use actix_web::{
+    cookie::Key,
     http::header,
     web::{scope, Data},
     App, HttpServer,
@@ -24,15 +26,22 @@ struct Database {
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().expect("Failed to load .env file");
 
-    let pool = MySqlPool::connect(&env::var("DATABASE_URL")?).await?;
-    let db = Data::new(Database { pool });
-
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .init();
 
+    let store = RedisSessionStore::new(env::var("REDIS_URL")?).await?;
+    let key = Key::generate();
+    let pool = MySqlPool::connect(&env::var("DATABASE_URL")?).await?;
+    let db = Data::new(Database { pool });
+
     HttpServer::new(move || {
         App::new()
+            .wrap(
+                SessionMiddleware::builder(store.clone(), key.clone())
+                    .cookie_name(String::from("session-id"))
+                    .build(),
+            )
             .wrap(
                 Cors::default()
                     .allowed_origin("http://localhost:3000")
@@ -58,27 +67,39 @@ async fn main() -> anyhow::Result<()> {
 mod test {
     use std::env;
 
+    use actix_session::storage::RedisSessionStore;
     use anyhow::Result;
 
     use sqlx::MySqlPool;
 
     use crate::types::{DBUser, QueryUser, UserList};
 
-    pub async fn connect() -> Result<MySqlPool> {
+    async fn connect_redis() -> Result<RedisSessionStore> {
+        dotenvy::dotenv()?;
+        Ok(RedisSessionStore::new(env::var("REDIS_URL")?).await?)
+    }
+
+    pub async fn connect_mysql() -> Result<MySqlPool> {
         dotenvy::dotenv()?;
         Ok(MySqlPool::connect(&env::var("DATABASE_URL")?).await?)
     }
 
     #[tokio::test]
-    async fn mysql_connect() -> anyhow::Result<()> {
-        let pool = connect().await?;
+    async fn mysql_connect_test() -> anyhow::Result<()> {
+        let pool = connect_mysql().await?;
         pool.close().await;
         Ok(())
     }
 
     #[tokio::test]
+    async fn redis_connect_test() -> Result<()> {
+        connect_redis().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn search_user() -> Result<()> {
-        let pool = connect().await?;
+        let pool = connect_mysql().await?;
 
         let user_name = String::from("name");
 
@@ -98,7 +119,7 @@ mod test {
 
     #[tokio::test]
     async fn create_user() -> Result<()> {
-        let pool = connect().await?;
+        let pool = connect_mysql().await?;
         let user = QueryUser {
             id: "id".to_string(),
             name: "test".to_string(),
