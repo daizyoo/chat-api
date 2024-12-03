@@ -10,10 +10,8 @@ use actix_web::{
 };
 use tracing::info;
 
-use crate::types::Result;
-
-use crate::types::{CreateRoom, LoginInfo, Response, Room};
-use crate::{Database, QueryUser, UserList};
+use crate::types::{CreateRoom, Error, LoginInfo, QueryUser, Response, Result, Room, UserList};
+use crate::Database;
 
 pub fn room_service_config(cfg: &mut ServiceConfig) {
     cfg.route("/create", post().to(create))

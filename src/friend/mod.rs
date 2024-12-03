@@ -12,8 +12,8 @@ use actix_web::{
     HttpResponse,
 };
 
-use crate::types::{AddFriend, Response, UserInfo};
-use crate::{Database, QueryUser, UserList};
+use crate::types::{AddFriend, QueryUser, Response, UserInfo, UserList};
+use crate::Database;
 
 pub fn friend_service_config(cfg: &mut ServiceConfig) {
     cfg.route("/add", post().to(add))

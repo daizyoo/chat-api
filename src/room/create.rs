@@ -16,7 +16,7 @@ pub async fn create(db: Data<Database>, Json(new_room): Json<CreateRoom>) -> Res
         .iter()
         .all(|id| friends.list.contains(id))
     {
-        return Err(crate::types::Error::NotFriends.into());
+        return Err(Error::NotFriends.into());
     }
 
     let members = json!({"list": new_room.members()});

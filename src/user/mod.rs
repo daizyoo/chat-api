@@ -14,8 +14,11 @@ use actix_web::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::types::{AccountInfo, Error, LoginInfo, Response, Result, User, UserId, UserInfo};
-use crate::{DBUser, Database, QueryUser, UserList};
+use crate::types::{
+    AccountInfo, DBUser, Error, LoginInfo, QueryUser, Response, Result, User, UserId, UserInfo,
+    UserList,
+};
+use crate::Database;
 
 pub fn user_service_config(cfg: &mut ServiceConfig) {
     cfg.route("/create", post().to(create))

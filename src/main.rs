@@ -13,7 +13,6 @@ use actix_web::{
     App, HttpServer,
 };
 
-use serde_json::{json, Value};
 use sqlx::MySqlPool;
 use tracing_subscriber::EnvFilter;
 
@@ -55,43 +54,6 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Debug)]
-struct DBUser {
-    id: String,
-    name: String,
-    password: String,
-    friends: UserList,
-}
-
-#[derive(Debug)]
-struct QueryUser {
-    id: String,
-    name: String,
-    password: String,
-    friends: Value,
-}
-
-#[derive(Debug)]
-struct UserList {
-    list: Vec<String>,
-}
-
-impl From<UserList> for Value {
-    fn from(friends: UserList) -> Self {
-        json!({ "list": serde_json::to_string(&friends.list).unwrap() })
-    }
-}
-
-/// mysqlに保存されたJson形式の {"list": [...]}をUserListに変換する
-impl From<Value> for UserList {
-    fn from(value: Value) -> Self {
-        let list = value.as_object().unwrap().get("list").unwrap().as_str();
-
-        let s = serde_json::from_str::<Vec<String>>(list.unwrap()).unwrap();
-        Self { list: s }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use std::env;
@@ -100,7 +62,7 @@ mod test {
 
     use sqlx::MySqlPool;
 
-    use crate::{DBUser, QueryUser, UserList};
+    use crate::types::{DBUser, QueryUser, UserList};
 
     pub async fn connect() -> Result<MySqlPool> {
         dotenvy::dotenv()?;

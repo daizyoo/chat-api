@@ -9,8 +9,7 @@ use actix_web::{
     HttpResponse,
 };
 
-use crate::types::GetMessages;
-use crate::types::{Response, Result};
+use crate::types::{GetMessages, MessageInfo, Response, Result, UserInfo};
 use crate::Database;
 
 pub fn message_service_config(cfg: &mut ServiceConfig) {

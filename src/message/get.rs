@@ -1,8 +1,6 @@
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::types::UserInfo;
-
 use super::*;
 
 struct QueryRoom {

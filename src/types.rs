@@ -1,5 +1,6 @@
 use actix_web::{http::StatusCode, HttpResponse, ResponseError};
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use tracing::{error, info};
 
 #[derive(thiserror::Error, Debug)]
@@ -118,6 +119,27 @@ pub struct CreateRoom {
     members: Vec<UserId>,
 }
 
+#[derive(Debug)]
+pub struct DBUser {
+    pub id: String,
+    pub name: String,
+    pub password: String,
+    pub friends: UserList,
+}
+
+#[derive(Debug)]
+pub struct QueryUser {
+    pub id: String,
+    pub name: String,
+    pub password: String,
+    pub friends: Value,
+}
+
+#[derive(Debug)]
+pub struct UserList {
+    pub list: Vec<String>,
+}
+
 impl User {
     pub const fn name(&self) -> &String {
         &self.name
@@ -194,18 +216,6 @@ impl MessageInfo {
     }
 }
 
-impl From<MessageInfo> for Message {
-    fn from(value: MessageInfo) -> Self {
-        Message {
-            text: value.text().clone(),
-            user: LoginInfo {
-                id: value.user.id().to_string(),
-                password: value.user.password().to_string(),
-            },
-        }
-    }
-}
-
 impl CreateRoom {
     pub const fn members(&self) -> &Vec<UserId> {
         &self.members
@@ -221,8 +231,36 @@ impl Room {
     }
 }
 
+impl From<MessageInfo> for Message {
+    fn from(value: MessageInfo) -> Self {
+        Message {
+            text: value.text().clone(),
+            user: LoginInfo {
+                id: value.user.id().to_string(),
+                password: value.user.password().to_string(),
+            },
+        }
+    }
+}
+
 impl From<&User> for LoginInfo {
     fn from(user: &User) -> Self {
         LoginInfo::new(user.id.clone(), user.password.clone())
+    }
+}
+
+impl From<UserList> for Value {
+    fn from(friends: UserList) -> Self {
+        json!({ "list": serde_json::to_string(&friends.list).unwrap() })
+    }
+}
+
+/// mysqlに保存されたJson形式の {"list": [...]}をUserListに変換する
+impl From<Value> for UserList {
+    fn from(value: Value) -> Self {
+        let list = value.as_object().unwrap().get("list").unwrap().as_str();
+
+        let s = serde_json::from_str::<Vec<String>>(list.unwrap()).unwrap();
+        Self { list: s }
     }
 }

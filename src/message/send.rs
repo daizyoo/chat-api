@@ -1,5 +1,3 @@
-use crate::types::MessageInfo;
-
 use super::*;
 
 pub async fn send_message(

@@ -1,7 +1,5 @@
 use serde_json::Value;
 
-use crate::QueryUser;
-
 use super::*;
 
 struct QueryRoom {
