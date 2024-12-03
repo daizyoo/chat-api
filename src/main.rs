@@ -7,7 +7,9 @@ mod user;
 use std::env;
 
 use actix_cors::Cors;
+use actix_session::{storage::RedisSessionStore, SessionMiddleware};
 use actix_web::{
+    cookie::Key,
     http::header,
     web::{scope, Data},
     App, HttpServer,
@@ -24,15 +26,18 @@ struct Database {
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().expect("Failed to load .env file");
 
-    let pool = MySqlPool::connect(&env::var("DATABASE_URL")?).await?;
-    let db = Data::new(Database { pool });
-
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .init();
 
+    let store = RedisSessionStore::new(env::var("REDIS_URL")?).await?;
+    let key = Key::generate();
+    let pool = MySqlPool::connect(&env::var("DATABASE_URL")?).await?;
+    let db = Data::new(Database { pool });
+
     HttpServer::new(move || {
         App::new()
+            .wrap(SessionMiddleware::builder(store.clone(), key.clone()).build())
             .wrap(
                 Cors::default()
                     .allowed_origin("http://localhost:3000")
