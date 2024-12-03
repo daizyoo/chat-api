@@ -2,6 +2,7 @@ use serde_json::Value;
 
 use super::*;
 
+#[derive(Debug)]
 struct QueryRoom {
     id: i32,
     members: Value,
@@ -15,19 +16,19 @@ pub async fn get_rooms(
         .fetch_one(&db.pool)
         .await?;
 
-    let rooms = sqlx::query_as!(
-        QueryRoom,
-        "SELECT * FROM room WHERE members LIKE ?",
-        user.id
-    )
-    .fetch_all(&db.pool)
-    .await?;
-
+    let rooms = sqlx::query_as!(QueryRoom, "SELECT * FROM room",)
+        .fetch_all(&db.pool)
+        .await?;
     let rooms: Vec<Room> = rooms
         .iter()
+        .filter(|r| {
+            let users: UserList = r.members.clone().into();
+            users.list.contains(&user.id)
+        })
         .map(|r| {
-            let members: UserList = r.members.clone().into();
-            Room::new(r.id, members.list)
+            let users: UserList = r.members.clone().into();
+            let members: Vec<String> = users.list.into_iter().filter(|id| id != &user.id).collect();
+            Room::new(r.id, members)
         })
         .collect();
 
