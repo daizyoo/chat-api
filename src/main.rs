@@ -37,7 +37,11 @@ async fn main() -> anyhow::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .wrap(SessionMiddleware::builder(store.clone(), key.clone()).build())
+            .wrap(
+                SessionMiddleware::builder(store.clone(), key.clone())
+                    .cookie_name(String::from("session-id"))
+                    .build(),
+            )
             .wrap(
                 Cors::default()
                     .allowed_origin("http://localhost:3000")
